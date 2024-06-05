@@ -630,6 +630,8 @@ TEST_CASE("PythonCompiler 2") {
     cu.generate_object_code = false;
     cu.interactive = true;
     cu.po.runtime_library_dir = LCompilers::LPython::get_runtime_library_dir();
+    LCompilers::LPython::DynamicLibrary runtime_lib;
+    LCompilers::LPython::open_runtime_library(runtime_lib);
     PythonCompiler e(cu);
     LCompilers::Result<PythonCompiler::EvalResult>
 
@@ -640,6 +642,8 @@ TEST_CASE("PythonCompiler 2") {
     CHECK(r.ok);
     CHECK(r.result.type == PythonCompiler::EvalResult::integer4);
     CHECK(r.result.i32 == 1);
+
+    LCompilers::LPython::close_runtime_library(runtime_lib);
 }
 
 TEST_CASE("PythonCompiler i32 expressions") {
@@ -1298,6 +1302,8 @@ TEST_CASE("PythonCompiler asr verify 1") {
     cu.generate_object_code = false;
     cu.interactive = true;
     cu.po.runtime_library_dir = LCompilers::LPython::get_runtime_library_dir();
+    LCompilers::LPython::DynamicLibrary runtime_lib;
+    LCompilers::LPython::open_runtime_library(runtime_lib);
     PythonCompiler e(cu);
     LCompilers::Result<PythonCompiler::EvalResult>
     r = e.evaluate2("i: i32 = 3 % 2");
@@ -1307,6 +1313,7 @@ TEST_CASE("PythonCompiler asr verify 1") {
     CHECK(r.ok);
     CHECK(r.result.type == PythonCompiler::EvalResult::integer4);
     CHECK(r.result.i32 == 1);
+    LCompilers::LPython::close_runtime_library(runtime_lib);
 }
 
 TEST_CASE("PythonCompiler asr verify 2") {
@@ -1316,6 +1323,8 @@ TEST_CASE("PythonCompiler asr verify 2") {
     cu.generate_object_code = false;
     cu.interactive = true;
     cu.po.runtime_library_dir = LCompilers::LPython::get_runtime_library_dir();
+    LCompilers::LPython::DynamicLibrary runtime_lib;
+    LCompilers::LPython::open_runtime_library(runtime_lib);
     PythonCompiler e(cu);
     LCompilers::Result<PythonCompiler::EvalResult>
     r = e.evaluate2(R"(
@@ -1334,6 +1343,7 @@ def is_even(x: i32) -> i32:
     CHECK(r.ok);
     CHECK(r.result.type == PythonCompiler::EvalResult::integer4);
     CHECK(r.result.i32 == 0);
+    LCompilers::LPython::close_runtime_library(runtime_lib);
 }
 
 TEST_CASE("PythonCompiler asr verify 3") {

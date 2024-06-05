@@ -1,9 +1,8 @@
 name: lp
 channels:
   - conda-forge
-  - defaults
 dependencies:
-  - llvmdev=11.1.0
+  - llvmdev=16.0.6
   - toml
   - pytest
   - jupyter
