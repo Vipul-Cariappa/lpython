@@ -3,7 +3,7 @@
 set -ex
 
 # generate tag
-generate_default_tag.sh
+git tag "v0.0.0=0"
 
 # Generate the `version` file
 ci/version.sh
