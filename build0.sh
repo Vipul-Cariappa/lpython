@@ -2,6 +2,9 @@
 
 set -ex
 
+# generate tag
+generate_default_tag.sh
+
 # Generate the `version` file
 ci/version.sh
 
