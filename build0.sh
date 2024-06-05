@@ -2,6 +2,9 @@
 
 set -ex
 
+# Generate tag
+git tag "v0.0.0=0"
+
 # Generate the `version` file
 ci/version.sh
 
