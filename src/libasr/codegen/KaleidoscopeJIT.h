@@ -43,7 +43,6 @@ private:
 
   DataLayout DL;
   MangleAndInterner Mangle;
-  ThreadSafeContext Ctx;
   JITDylib &JITDL;
 
   TargetMachine *TM;
@@ -58,7 +57,6 @@ public:
                     []() { return std::make_unique<SectionMemoryManager>(); }),
         CompileLayer(ES, ObjectLayer, std::make_unique<ConcurrentIRCompiler>(ConcurrentIRCompiler(std::move(JTMB)))),
         DL(std::move(DL)), Mangle(ES, this->DL),
-        Ctx(std::make_unique<LLVMContext>()),
         JITDL(
 #if LLVM_VERSION_MAJOR >= 11
             cantFail
@@ -96,11 +94,11 @@ public:
 
   const DataLayout &getDataLayout() const { return DL; }
 
-  LLVMContext &getContext() { return *Ctx.getContext(); }
-
-  Error addModule(std::unique_ptr<Module> M) {
-    return CompileLayer.add(JITDL,
-                            ThreadSafeModule(std::move(M), Ctx));
+  Error addModule(std::unique_ptr<Module> M, std::unique_ptr<LLVMContext> &Ctx) {
+    auto res =  CompileLayer.add(JITDL,
+                            ThreadSafeModule(std::move(M), std::move(Ctx)));
+    Ctx = std::make_unique<LLVMContext>();
+    return res;
   }
 
   Expected<JITEvaluatedSymbol> lookup(StringRef Name) {

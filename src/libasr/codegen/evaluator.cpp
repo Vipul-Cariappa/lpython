@@ -232,7 +232,7 @@ void LLVMEvaluator::add_module(std::unique_ptr<llvm::Module> mod) {
     // cases when the Module was constructed directly, not via parse_module().
     mod->setTargetTriple(target_triple);
     mod->setDataLayout(jit->getDataLayout());
-    llvm::Error err = jit->addModule(std::move(mod));
+    llvm::Error err = jit->addModule(std::move(mod), context);
     if (err) {
         llvm::SmallVector<char, 128> buf;
         llvm::raw_svector_ostream dest(buf);
