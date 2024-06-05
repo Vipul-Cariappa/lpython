@@ -26,6 +26,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Create Git Tag
+        shell: bash -e -l {0}
+        run: git tag "v0.0.0=0"
+
       - name: Cache conda
         uses: actions/cache@v3
         env:
