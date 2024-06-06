@@ -26,6 +26,10 @@
 #include "llvm/IR/LLVMContext.h"
 #include <memory>
 
+#if LLVM_VERSION_MAJOR >= 13
+#include "llvm/ExecutionEngine/Orc/ExecutorProcessControl.h"
+#endif
+
 #if LLVM_VERSION_MAJOR >= 16
 #    define RM_OPTIONAL_TYPE std::optional
 #else
@@ -37,7 +41,7 @@ namespace orc {
 
 class KaleidoscopeJIT {
 private:
-  ExecutionSession ES;
+  std::unique_ptr<ExecutionSession> ES;
   RTDyldObjectLinkingLayer ObjectLayer;
   IRCompileLayer CompileLayer;
 
@@ -48,20 +52,18 @@ private:
   TargetMachine *TM;
 
 public:
-  KaleidoscopeJIT(JITTargetMachineBuilder JTMB, DataLayout DL)
+  KaleidoscopeJIT(std::unique_ptr<ExecutionSession> ES, JITTargetMachineBuilder JTMB, DataLayout DL)
       :
-#if LLVM_VERSION_MAJOR >= 13
-        ES(cantFail(SelfExecutorProcessControl::Create())),
-#endif
-        ObjectLayer(ES,
+        ES(std::move(ES)),
+        ObjectLayer(*this->ES,
                     []() { return std::make_unique<SectionMemoryManager>(); }),
-        CompileLayer(ES, ObjectLayer, std::make_unique<ConcurrentIRCompiler>(ConcurrentIRCompiler(std::move(JTMB)))),
-        DL(std::move(DL)), Mangle(ES, this->DL),
+        CompileLayer(*this->ES, ObjectLayer, std::make_unique<ConcurrentIRCompiler>(std::move(JTMB))),
+        DL(std::move(DL)), Mangle(*this->ES, this->DL),
         JITDL(
 #if LLVM_VERSION_MAJOR >= 11
             cantFail
 #endif
-          (ES.createJITDylib("Main"))) {
+          (this->ES->createJITDylib("Main"))) {
     JITDL.addGenerator(
         cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
             DL.getGlobalPrefix())));
@@ -80,16 +82,31 @@ public:
   }
 
   static Expected<std::unique_ptr<KaleidoscopeJIT>> Create() {
-    auto JTMB = JITTargetMachineBuilder::detectHost();
+#if LLVM_VERSION_MAJOR >= 13
+    auto EPC = SelfExecutorProcessControl::Create();
+    if (!EPC)
+      return EPC.takeError();
 
-    if (!JTMB)
-      return JTMB.takeError();
+    auto ES = std::make_unique<ExecutionSession>(std::move(*EPC));
 
-    auto DL = JTMB->getDefaultDataLayoutForTarget();
+    JITTargetMachineBuilder JTMB(
+        ES->getExecutorProcessControl().getTargetTriple());
+#else
+    auto ES = std::make_unique<ExecutionSession>();
+
+    auto JTMB_P = JITTargetMachineBuilder::detectHost();
+    if (!JTMB_P)
+      return JTMB_P.takeError();
+
+    auto JTMB = *JTMB_P;
+#endif
+
+    auto DL = JTMB.getDefaultDataLayoutForTarget();
     if (!DL)
       return DL.takeError();
 
-    return std::make_unique<KaleidoscopeJIT>(std::move(*JTMB), std::move(*DL));
+    return std::make_unique<KaleidoscopeJIT>(std::move(ES), std::move(JTMB),
+                                             std::move(*DL));
   }
 
   const DataLayout &getDataLayout() const { return DL; }
@@ -102,7 +119,7 @@ public:
   }
 
   Expected<JITEvaluatedSymbol> lookup(StringRef Name) {
-    return ES.lookup({&JITDL}, Mangle(Name.str()));
+    return ES->lookup({&JITDL}, Mangle(Name.str()));
   }
 
   TargetMachine &getTargetMachine() { return *TM; }
